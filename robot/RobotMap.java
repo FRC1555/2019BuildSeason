@@ -7,6 +7,9 @@
 
 package org.usfirst.frc.team1555.robot;
 
+import edu.wpi.first.wpilibj.Victor;
+import edu.wpi.first.wpilibj.Talon;
+
 /**
  * The RobotMap is a mapping from the ports sensors and actuators are wired into
  * to a variable name. This provides flexibility changing wiring, makes checking
@@ -24,16 +27,20 @@ public class RobotMap {
 	// public static int rangefinderPort = 1;
 	// public static int rangefinderModule = 1;
 	
+	//Declaring the elements of the drive train
+	public static Victor leftMotor;
+	public static Victor rightMotor;
 	public static int Lmotor = 0;
 	public static int Rmotor = 1;
-	//Due to a shortage in signal wire splitters, we are currently running the right drive motors off two separate ports
-	public static int Rmotor2 = 2;
 	
-	public static int intake = 3;
-	public static int intakeLift = 4;
+	//
+	public static Talon intakeMotor;
+	public static Talon liftMotor;
+	public static int intake = 2;
+	public static int intakeLift = 3;
 	//The hatch panel grabbers are currently run off two ports, although we should be able to change it to one in the future
-	public static int hatchSlapper1 = 5;
-	public static int hatchSlapper2 = 6;
+	public static int hatchSlapper1 = 4;
+	public static int hatchSlapper2 = 5;
 	
 	public static int solenoidP1 = 0;
 	public static int solenoidP2 = 1;
@@ -48,6 +55,17 @@ public class RobotMap {
 	
 	public static String limeLightKey = "limelight";
 	
-	
+	public static Talon hatchMotor;
+	public static Talon slapMotor;
+
+	//Initalizes all the hardware
+	public void mapAll() {
+		leftMotor = new Victor(Lmotor);
+		rightMotor = new Victor(Rmotor);
+		intakeMotor = new Talon(intake);
+		liftMotor = new Talon(intakeLift);
+		hatchMotor = new Talon(hatchSlapper1);
+		slapMotor = new Talon(hatchSlapper2);
+	}
 	
 }

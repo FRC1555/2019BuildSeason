@@ -20,8 +20,8 @@ import edu.wpi.first.wpilibj.buttons.JoystickButton;
 public class OI {
 	
 	//Declaring the joysticks that will be used
-	static Joystick leftStick = new Joystick(0);
-	static Joystick rightStick = new Joystick(1);
+	static Joystick leftStick = new Joystick(1);
+	static Joystick rightStick = new Joystick(0);
 	static Joystick manipulator = new Joystick(2);
 	
 	//Three Arrays of joystick buttons, one for each of the the sticks. The first element in each array is null so that when mapping the buttons in the code
@@ -32,8 +32,7 @@ public class OI {
 	
 	static Button[] rightButtons = {null, new JoystickButton(rightStick, 1), new JoystickButton(rightStick, 2),
 			new JoystickButton(rightStick, 3), new JoystickButton(rightStick, 4), new JoystickButton(rightStick, 5), new JoystickButton(rightStick, 6),
-			new JoystickButton(rightStick, 7), new JoystickButton(rightStick, 8), new JoystickButton(rightStick, 9), new JoystickButton(rightStick, 10),
-		    new JoystickButton(rightStick, 11)};
+			new JoystickButton(rightStick, 7), new JoystickButton(rightStick, 8), new JoystickButton(rightStick, 9), new JoystickButton(rightStick, 10)};
 	
 	static Button[] manipButtons = {null, new JoystickButton(manipulator, 1), new JoystickButton(manipulator, 2), new JoystickButton(manipulator, 3), 
 			new JoystickButton(manipulator, 4), new JoystickButton(manipulator, 5), new JoystickButton(manipulator, 6), new JoystickButton(manipulator, 7),

@@ -20,10 +20,21 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Counter;
 import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.Spark;
 
+
+
+import java.awt.Dialog.ModalityType;
+import java.lang.annotation.Target;
+
+ 
+import org.usfirst.frc.team1555.robot.commands.*;
 import org.usfirst.frc.team1555.robot.subsystems.DriveTrain;
 import org.usfirst.frc.team1555.robot.subsystems.ExampleSubsystem;
+import org.usfirst.frc.team1555.robot.subsystems.HatchSlapper;
+import org.usfirst.frc.team1555.robot.subsystems.Intake;
+import org.usfirst.frc.team1555.robot.subsystems.Lift;
+import org.usfirst.frc.team1555.robot.subsystems.encoder;
+import org.usfirst.frc.team1555.robot.subsystems.limelight;
 import org.usfirst.frc.team1555.robot.subsystems.pneumatics;
 
 /**
@@ -34,35 +45,63 @@ import org.usfirst.frc.team1555.robot.subsystems.pneumatics;
  * project.
  */
 public class Robot extends TimedRobot {
+	
+	//Declaring motor controllers
+	//Victors, Talons, and Sparks are the three types of motor controllers
 	public static Victor driveL;
 	public static Victor driveR;
-	public static Spark led;
+	public static Talon appendage;
 
+	//Declaring sensors
+	DigitalInput limit;
+	Encoder encoder;
+
+	//Declaring subsystems
 	public static final ExampleSubsystem kExampleSubsystem
-    = new ExampleSubsystem();
+	= new ExampleSubsystem();	//The only reason we keep this is because the ExampleSubsytem class will give errors without it
+	public static final OI m_oi
+	= new OI();		//Object Interface. This creates the controllers
     public static final DriveTrain Drive
-    = new DriveTrain();
+    = new DriveTrain();		//The drive train for the robot. Includes all the methods for driving the robot
+    public static final limelight kLimelight
+    = new limelight();		//The vision tracking classes require this to be used
     public static final pneumatics kPneumatics
-    = new pneumatics();
-    public static final Timer tim
-	= new Timer();
+    = new pneumatics();		//Pneumatic controls
+	public static final encoder encode 
+	= new encoder();	//Controls all the encoders
+    public static final Timer time
+	= new Timer();		//Used for keeping track of time
+	public static final RobotMap map
+	= new RobotMap();		//Maps the robot
+
+	//Declaring commands
+	public static ExampleCommand kExampleCommand
+	= new ExampleCommand();
+	public static SeekVisionTarget kSeekVisionTarget
+	= new SeekVisionTarget();
+	
+	//Doubles for the motor target positions
+	public static double liftTargetPosition;
+	public static double hatchTargetPosition;
+	public static final int liftHomePosition = 0;
+	public static final double liftScorePosition = 10000;
+	public static final double liftIntakePosition = 46000;
+	public static final double hatchScorePosition = 21000;
+	public static final double hatchHomePosition = 0;
+	public static final double hatchFloorPosition = 70000;
+
+	double speedDrop;
+
+	boolean cyclingLead;
 
     //Declaring commands
 	Command m_autonomousCommand;
 
-	//Used for holding the x and y values of the stick when using arcade drive
-	double xValue;
-	double yValue;
-
-	double speed = 0.5;
-
-	double ledStyle = 0.01;
-
-	boolean buttonPressed = true;
-
-	//Declaring OI
-	public static OI m_oi;
-
+	
+	
+	//Used for the camera controls
+	public static boolean primaryCamActive;
+	
 	//I really don't know what this thing is it was here when I made the program and I haven't bothered to figure out what it does yet
 	SendableChooser<Command> m_chooser = new SendableChooser<>();
 
@@ -71,26 +110,34 @@ public class Robot extends TimedRobot {
 	 * used for any initialization code.
 	 */
 
+//Declaring OI
+
 	public void robotInit() {
-		driveL = new Victor(0);
-		driveR = new Victor(1);
-		led = new Spark(2);
-		
-		//Creating OI
-	    m_oi = new OI();
+		//Mapping all the hardware
+		map.mapAll();
+		driveL = map.leftMotor;
+		driveR = map.rightMotor;
+		appendage = map.intakeMotor;
+
+		limit = new DigitalInput(0);
+		encoder = new Encoder(9, 8);
 	    
-	    //Autonomous stuff I haven't figured out yet
-		//m_chooser.addDefault("Default Auto", new ExampleCommand());
-		// chooser.addObject("My Auto", new MyAutoCommand());
-		SmartDashboard.putData("Auto mode", m_chooser);
-		
-		//Prepares the pneumatics
-		kPneumatics.clearStickyFault();
-		kPneumatics.solenoidOff();
-		kPneumatics.compressorOn();
-			
+	  //Autonomous stuff I haven't figured out yet
+	  		//m_chooser.addDefault("Default Auto", new ExampleCommand());
+	  		// chooser.addObject("My Auto", new MyAutoCommand());
+	  		SmartDashboard.putData("Auto mode", m_chooser);
+	  		
+	  		//Prepares the pneumatics
+	  		kPneumatics.clearStickyFault();
+	  		kPneumatics.solenoidOff();
+	  		kPneumatics.compressorOn();
+	  		
+	  		cyclingLead = false;
+			primaryCamActive = true;			
+
 	}
 	
+	// TODO: Figure out what this is for
 	@Override
 	public void robotPeriodic() {
 		// TODO Auto-generated method stub
@@ -98,20 +145,21 @@ public class Robot extends TimedRobot {
 	}
 	
 	@Override
-	public void disabledInit() {	
-		//Stops the motors
+	public void disabledInit() {
 		driveL.stopMotor();
 		driveR.stopMotor();
+		appendage.stopMotor();
 		
 		super.disabledInit();
+		System.out.println("disabled");
+		encoder.reset();
+		kLimelight.setPipe(1);
 	}
 	
 	@Override
 	public void disabledPeriodic() {
 		// TODO Auto-generated method stub
 		super.disabledPeriodic();
-		ledControls();
-		
 	}
 	
 	@Override
@@ -129,7 +177,11 @@ public class Robot extends TimedRobot {
 		if (m_autonomousCommand != null) {
 			m_autonomousCommand.start();
 		}
-		
+		kLimelight.setStreamPrimary();
+		//kLimelight.setStreamSecondary();
+		kLimelight.setPipe(1);
+		hatchTargetPosition = 0;
+		liftTargetPosition = 0;
 	}
 
 	/**
@@ -138,89 +190,105 @@ public class Robot extends TimedRobot {
 	@Override
 	public void autonomousPeriodic() {
 		Scheduler.getInstance().run();
-		//Runs the teleop controls
-		//We run these because there is no autonomous program to run
-		teleopControl();
+		tedFerdenan();
 	}
 	
 	@Override
 	public void teleopInit() {
-		//Sets the motors to 0
+		System.out.println("*************************************************************************************");
+		System.out.println("*************************************************************************************");
+		// This makes sure that the autonomous stops running when
+		// teleop starts running. If you want the autonomous to
+		// continue until interrupted by another command, remove
+		// this line or comment it out.
+//		if (m_autonomousCommand != null) {
+//			m_autonomousCommand.cancel();
+//		}
+
 		driveL.set(0);
 		driveR.set(0);
+		appendage.set(0);
+
+		//Used to regulate the speed of the drive train
+		speedDrop = 1.0;
 	}
 	
 	@Override
 	public void teleopPeriodic() {
-		//Runs the teleop controls
-		teleopControl();
+		tedFerdenan();
 	}
 
-	//A method that runs the teleop controls
-	public void teleopControl() {
-		//xValue = m_oi.GetRightX();
-		//yValue = m_oi.GetRightY();
+	public void tedFerdenan() {
+		//Prints the encoder reading
+		//System.out.println("Encoder: " + encoder.getDistance());
+		Scheduler.getInstance().run();
+		//Drive controls
+		//System.out.println(m_oi.leftButtons[1].get());
+		
+		//Checks to see if left button one is pressed
+		if (m_oi.leftButtons[1].get()) {
+			//Runs vision seeking controls
+			m_oi.leftButtons[1].whileHeld(kSeekVisionTarget);
+		}
+		else {
+			//Runs manual controls
+			if (primaryCamActive) {
+				//driveL.set(m_oi.GetRightY());
+				driveL.set(m_oi.GetLeftY());
+				driveR.set(m_oi.GetLeftY());
 
-		//Drives the robot
-		//arcadeDrive(xValue, yValue);
-		driveR.set(-m_oi.GetLeftY() * speed);
-		driveL.set(m_oi.GetRightY() * speed);
+			}
+			else {
+				driveL.set(m_oi.GetLeftY());
+				//driveR.set(m_oi.GetRightY());
+				driveR.set(m_oi.GetLeftY());
+			}
+		}
+		
+		
+		//Hatch controls
 
-		//Fires the piston when one of the triggers is pressed
-		if (m_oi.leftButtons[1].get() || m_oi.rightButtons[1].get()) {
+		//Sets the target position of the hatch
+		if (m_oi.hatchScore.get()) {
+			hatchTargetPosition = hatchScorePosition;
+		}
+		else if (m_oi.hatchTravel.get()) {
+			hatchTargetPosition = hatchHomePosition;
+		}
+		//Moves the hatch
+		if (m_oi.hatchUp.get() && !limit.get()) {
+			appendage.set(0.3);
+		}
+		//ManipY -1 = button 16
+		else if (m_oi.GetManipY() == -1.0) {
+			appendage.set(-0.7);
+		} 
+
+		//Resets the hatch encoder
+		//ManipY +1 = button 15
+		if ((m_oi.GetManipY() == 1) || limit.get())  {
+			encoder.reset();
+		}
+		
+		//Pneumatics controls
+		if (m_oi.shootHatch.get()) {
 			kPneumatics.extend();
 		}
-		//Retracts the piston if no triggers are pressed
 		else {
 			kPneumatics.retract();
 		}
 		
-		ledControls();
-
-		//Press buttons 6 and 7 on the left stick while the Z axis is turned all the way up to enable full speed
-		//Press buttons 11 and 12 on the right stick or turn the Z axis on the left stick down to disable full speed
-		if (m_oi.leftButtons[6].get() && m_oi.leftButtons[7].get() && (m_oi.GetLeftZ() == -1)) {
-			speed = 1;
+		//Camera controls
+		if (m_oi.leftButtons[2].get()) {
+			kLimelight.setStreamPrimary();
+			primaryCamActive = true;
+			kLimelight.setPipe(1);
 		}
-		else if ((m_oi.rightButtons[10].get() && m_oi.rightButtons[11].get()) || m_oi.GetLeftZ() != -1) {
-			speed = 0.5;
-		}
-
-	}
-
-	public void ledControls() {
-		
-		if (m_oi.rightButtons[2].get() && !buttonPressed) {
-			ledStyle += 0.02;
-			buttonPressed = true;
-		}
-		else if (m_oi.leftButtons[2].get() && !buttonPressed) {
-			ledStyle -= 0.02;
-			buttonPressed = true;
-		}
-		else if (!(m_oi.leftButtons[2].get() || m_oi.rightButtons[2].get())) {
-			buttonPressed = false;
+		if (m_oi.rightButtons[2].get()) {
+			kLimelight.setStreamSecondary();
+			primaryCamActive = false;
 		}
 
-		led.set(ledStyle);
-	}
-
-	//A method for driving arcade style (one stick)
-	public void arcadeDrive(double x, double y) {
-		driveL.set(x - y);
-		driveR.set(x + y);
-	}
-
-	//A method that returns true if any button on the right stick is pressed
-	public boolean anyButtonPressed() {
-		boolean buttonPressed = false;
-		for (int i = 1; i <= 11; i++) {
-			if (m_oi.rightButtons[i].get()) {
-				buttonPressed = true;
-				i = 11;
-			}
-		}
-		return buttonPressed;
 	}
 
 }

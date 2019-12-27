@@ -30,28 +30,24 @@ public class DriveTrain extends Subsystem {
     public static void buildDrive() {
     	L = new Victor(RobotMap.Lmotor);
     	R = new Victor(RobotMap.Rmotor);
-    	R2 =  new Victor(RobotMap.Rmotor2);
     }
     
     //Stops the drive train
     public static void stop() {
     	L.stopMotor();
         R.stopMotor();
-    	R2.stopMotor();
     }
     
     //Drives the robot with two separate powers for the wheels
     public static void driveTank(double Lspeed, double Rspeed) {
     	L.set(-Lspeed);
     	R.set(Rspeed);
-    	R2.set(Rspeed);
     }
     
     //Drives straight
     public static void driveStraight(double speed) {
     	L.set(-speed);
     	R.set(speed);
-    	R2.set(speed);
     }
     
     //Function pending
